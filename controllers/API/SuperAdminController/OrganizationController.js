@@ -191,11 +191,14 @@ function generateTempPassword(length = 10) {
 }
 const GetAllOrganization = async (req, res) => {
   try {
-    const organizations = await Organization.findAll();
-
+    const organizations = await Organization.findAll({
+      order: [['id', 'DESC']]
+    });
+    
     if (!organizations || organizations.length === 0) {
-      return res.status(404).json({
+      return res.status(400).json({
         success: false,
+        status:400,
         message: "No organizations found",
       });
     }
@@ -308,8 +311,9 @@ const GetOrgnizationById = async (req, res) => {
     const organization = await Organization.findOne({ where: { id } });
 
     if (!organization) {
-      return res.status(404).json({
+      return res.status(400).json({
         success: false,
+        status:400,
         message: "Organization not found",
       });
     }
@@ -418,17 +422,15 @@ const validateOrganizationUpdate = [
   body("organization_address").optional(),
   body("city").optional(),
   body("state").optional(),
-  body("postal_code").optional().isLength({ max: 10 }),
+  body("postal_code").optional().isLength({ max: 4 }),
   body("registration_id").optional(),
   body("contact_phone_number")
-    .optional()
-    .matches(/^[0-9+\-\s()]{7,20}$/),
+    .optional(),
   body("number_of_employees").optional().isIn(["1-10", "11-50", "51-200", "201-500", "500+"]),
   body("name").optional(),
   body("email").optional().isEmail(),
   body("user_name").optional(),
   body("plan_id").optional(),
-  body("role_id").optional(),
 ];
 
 const UpdateOrginzation = async (req, res) => {
@@ -437,13 +439,13 @@ const UpdateOrginzation = async (req, res) => {
 
     const organization = await Organization.findByPk(id);
     if (!organization) {
-      return res.status(404).json({ success: false, message: "Organization not found" });
+      return res.status(400).json({ status:400,success: false, message: "Organization not found" });
     }
 
     await Promise.all(validateOrganizationUpdate.map(validation => validation.run(req)));
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, errors: errors.array() });
+      return res.status(400).json({ status:400,success: false, errors: errors });
     }
 
     const {
@@ -460,7 +462,6 @@ const UpdateOrginzation = async (req, res) => {
       name,
       email,
       user_name,
-      role_id,
     } = req.body;
 
     // 🖼️ Handle updated files
@@ -511,13 +512,13 @@ const UpdateOrginzation = async (req, res) => {
         await adminUser.save();
 
         // 🧑‍⚖️ Update user role
-        if (role_id) {
-          await UserRoles.destroy({ where: { userId: adminUser.id } });
-          newUserRole = await UserRoles.create({
-            userId: adminUser.id,
-            roleId: role_id,
-          });
-        }
+        // if (role_id) {
+        //   await UserRoles.destroy({ where: { userId: adminUser.id } });
+        //   newUserRole = await UserRoles.create({
+        //     userId: adminUser.id,
+        //     roleId: role_id,
+        //   });
+        // }
 
         // 📅 Update subscription
         if (plan_id) {
