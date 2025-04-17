@@ -125,7 +125,7 @@ const ForgetPassword = async (req, res) => {
     const { email } = req.body;
     const user = await User.findOne({ where: { email } });
     if (!user) {
-      return res.status(404).json({ success: false, message: "User not found." });
+      return res.status(403).json({ status : 403 , success: false, message: "This email is not found." });
     }
     const resetToken = crypto.randomBytes(32).toString("hex");
     const resetTokenExpiry = new Date(Date.now() + 10 * 60 * 1000);
@@ -135,7 +135,7 @@ const ForgetPassword = async (req, res) => {
     });
     const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
     await sendPasswordResetEmail(user.email, resetLink);
-    res.status(200).json({ success: true, message: "Password reset email sent." });
+    res.status(200).json({ success: true, message: "the system would send a password reset link to the provided email address." });
   } catch (error) {
     console.error("Error requesting password reset:", error);
     res.status(500).json({ success: false, message: "Internal server error." });

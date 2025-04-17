@@ -3,7 +3,7 @@ const { authenticateUser, authorizeRoles } = require("../middleware/auth");
 const router = require("./userRoutes");
 const { Op } = require("sequelize");
 const {GetAllEnquiry,GetEnquiryById} = require("../controllers/API/EnquirySection/enquiryController");
-const { SuperAdminProfile, GetAllRoles, CheckPingSessionActivity, ForgetPassword, UpdatePassword } = require("../controllers/API/SuperAdminController/ProfileController");
+const { SuperAdminProfile, GetAllRoles, CheckPingSessionActivity } = require("../controllers/API/SuperAdminController/ProfileController");
 const { CreateIndustry, SoftDeleteIndustry, UpdateIndustry, GetIndustryById, GetAllIndustries } = require("../controllers/API/SuperAdminController/IndustryController");
 const { CreatePlans, GetPlans, GetPlanById, UpdatePlan, DeletePlan, TogglePlanStatus } = require("../controllers/API/SuperAdminController/PlansController");
 const { CreateOrganization, GetAllOrganization, GetOrgnizationById, UpdateOrginzation, ManagmentOrginazation, GetUserSubscriptionList,ToogleStatus, GetOrginazationDetails } = require("../controllers/API/SuperAdminController/OrganizationController");
@@ -34,8 +34,6 @@ router.put('/toggle-status-managment/:id', ...WithSuperAdminAndRole(ToogleStatus
 router.get("/super-admin-profile", ...WithSuperAdminAndRole(SuperAdminProfile));
 router.put("/check-ping-session", ...WithSuperAdminAndRole(CheckPingSessionActivity));
 
-router.post("/forget-password", ...WithSuperAdminAndRole(ForgetPassword));
-router.post("/update-password", ...WithSuperAdminAndRole(UpdatePassword));
 
 //Create For Industry
 
