@@ -38,6 +38,7 @@ const {
   DeleteFinancial,
   UpdateFinancialStatus,
 } = require("../controllers/SuperAdmin/Assets/FinancialController");
+
 const {
   CreateWarranty,
   GetAllCategoryListing,
@@ -66,7 +67,6 @@ const WithSuperAdminAndRole = (handler, role = "superadmin") => {
 // Start For Routes SuperAdmin
 
 router.post("/admin-logout", ...withAuthAndRole(CreateAdminLogout));
-
 router.post("/create-new-user", ...withAuthAndRole(CreateUserLogin));
 router.get("/get-user", ...withAuthAndRole(GetAllUsersWithRoles));
 router.get("/get-user-profile", ...withAuthAndRole(GetUserProfile));
@@ -85,7 +85,6 @@ router.get("/export-all-users-into-csv", ...withAuthAndRole(exportAllUsers));
 router.post("/create-asset", ...withAuthAndRole(CreateAsset));
 
 // End Asset Routes Here
-
 router.post("/create-category", ...withAuthAndRole(CreateCategory));
 router.get("/get-category", ...withAuthAndRole(GetAllCategory));
 router.get("/get-category-by-id/:id", ...withAuthAndRole(GetCategoryById));
@@ -102,7 +101,6 @@ router.delete("/delete-warranty/:id", ...withAuthAndRole(DeleteWarranty));
 router.put("/warranty-status-update", ...withAuthAndRole(WarrantyStatusUpdate));
 
 //make routes for Financial -information
-
 router.post("/create-financial-asset", ...withAuthAndRole(CreateFinancial));
 router.get("/get-all-financial-list-asset", ...withAuthAndRole(GetFinancialList));
 router.get("/get-finacial-list-by-id/:id", ...withAuthAndRole(GetFinancialListById));
@@ -135,7 +133,6 @@ router.put("/update-vendor-asset/:id", ...withAuthAndRole(UpdateVendor));
 router.delete("/delete-vendor-asset/:id", ...withAuthAndRole(DeleteVendor));
 router.put("/update-vendor-status", ...withAuthAndRole(UpdateVendorStatus));
 
-//
 // router.post('/rolse-create', ...withAuthAndRole(CreateRoles));
 // // GetAllRoles
 // router.get('/roles-get', ...withAuthAndRole(GetAllRoles));
