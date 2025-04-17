@@ -4,6 +4,8 @@ const { Op } = require("sequelize");
 const nodemailer = require("nodemailer");
 require("dotenv").config();
 const moment = require("moment");
+const emailQueue = require("../queues/emailQueue");
+
 const requestIp = require("request-ip");
 const useragent = require("useragent");
 const User = require("../models/user");
@@ -18,7 +20,6 @@ const EMAIL_USER = process.env.EMAIL_USER;
 const EMAIL_PASS = process.env.EMAIL_PASS;
 
 const blacklist = new Set(); // Temporary blacklist (or use Redis for persistence)
-
 
 // ========================== LOGIN FUNCTION ==========================
 const login = async (req, res) => {
@@ -36,22 +37,17 @@ const login = async (req, res) => {
     // 2. Get user(s) where either email or username matches
     const potentialUsers = await User.findAll({
       where: {
-        [Op.or]: [
-          { email: email },
-          { username: email }
-        ]
-      }
+        [Op.or]: [{ email: email }, { username: email }],
+      },
     });
 
     // 3. Case-sensitive match (exact match to username or email)
-    const user = potentialUsers.find(u =>
-      u.email === email || u.username === email
-    );
+    const user = potentialUsers.find(u => u.email === email || u.username === email);
 
     if (!user) {
       return res.status(403).json({
         status: 403,
-        message: "No account found with the provided email or username."
+        message: "No account found with the provided email or username.",
       });
     }
 
@@ -59,7 +55,7 @@ const login = async (req, res) => {
     if (!user.user_status) {
       return res.status(403).json({
         status: 403,
-        message: "Account is locked. Contact support."
+        message: "Account is locked. Contact support.",
       });
     }
 
@@ -73,7 +69,7 @@ const login = async (req, res) => {
         await user.update({ loginAttemptCount: 0, user_status: false });
         return res.status(403).json({
           status: 403,
-          message: "Too many failed attempts. Account is now locked."
+          message: "Too many failed attempts. Account is now locked.",
         });
       }
 
@@ -81,7 +77,7 @@ const login = async (req, res) => {
         return res.status(403).json({
           showcaptcha: true,
           status: 403,
-          message: "Too many failed attempts. Please verify the Captcha."
+          message: "Too many failed attempts. Please verify the Captcha.",
         });
       }
 
@@ -103,14 +99,13 @@ const login = async (req, res) => {
       status: 200,
       message: "OTP has been sent to your email. Please verify to complete login.",
       requiresOtp: true,
-      userId: user.id
+      userId: user.id,
     });
-
   } catch (error) {
     console.error("Login Error:", error);
     return res.status(500).json({
       message: "Internal server error.",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -118,24 +113,98 @@ const login = async (req, res) => {
 // ========================== OTP EMAIL FUNCTION ==========================
 const sendOtpEmail = async (userEmail, otp) => {
   try {
-    let transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: EMAIL_USER,
-        pass: EMAIL_PASS,
-      },
-    });
-    let mailOptions = {
-      from: `"Node SaaS BackEnd" <${EMAIL_USER}>`,
+    const emailTemplate = `
+      <html>
+        <head>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              background-color: #f4f4f9;
+              margin: 0;
+              padding: 0;
+            }
+            .email-container {
+              width: 100%;
+              max-width: 600px;
+              margin: 0 auto;
+              padding: 20px;
+              background-color: #ffffff;
+              border-radius: 8px;
+              box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            }
+            .header {
+              text-align: center;
+              padding-bottom: 20px;
+            }
+            .header h2 {
+              color: #4CAF50;
+            }
+            .otp-code {
+              font-size: 36px;
+              font-weight: bold;
+              color: #333333;
+              margin-top: 20px;
+              padding: 20px;
+              background-color: #e7f9e7;
+              border-radius: 8px;
+              text-align: center;
+            }
+            .footer {
+              margin-top: 40px;
+              font-size: 14px;
+              color: #777777;
+              text-align: center;
+            }
+            .footer a {
+              color: #4CAF50;
+              text-decoration: none;
+            }
+            .button {
+              background-color: #4CAF50;
+              color: white;
+              padding: 10px 20px;
+              text-decoration: none;
+              border-radius: 5px;
+              text-align: center;
+              display: inline-block;
+              margin-top: 20px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="email-container">
+            <div class="header">
+              <h2>OTP Verification for Login</h2>
+              <p>We received a request to log in to your account.</p>
+            </div>
+            <div class="otp-code">
+              <p>Your OTP code is:</p>
+              <h1>${otp}</h1>
+            </div>
+            <p style="text-align: center; color: #333333;">
+              This code will expire in 10 minutes. Please do not share this OTP with anyone.
+            </p>
+            <div class="footer">
+              <p>If you didn't request this, please ignore this email.</p>
+              <p>For more help, <a href="mailto:support@yourdomain.com">contact support</a>.</p>
+              <p>Thank you for using our service!</p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    // Add the email job to the queue
+    await emailQueue.add("send-otp", {
       to: userEmail,
       subject: "Your OTP Code",
       text: `Your OTP for login is: ${otp}`,
-      html: `<p>Your OTP for login is: <strong>${otp}</strong></p>`,
-    };
-    await transporter.sendMail(mailOptions);
-    console.log(`OTP sent to ${userEmail}`);
+      html: emailTemplate,
+    });
+
+    console.log(`OTP job added to queue for ${userEmail}`);
   } catch (error) {
-    console.error("Error sending OTP email:", error.message);
+    console.error("Failed to add email job to queue:", error.message);
   }
 };
 
@@ -165,13 +234,11 @@ const verifyOtp = async (req, res) => {
       return res.status(400).json({ message: "User not found" });
     }
     if (user.user_status === false) {
-      return res.status(400).json({ 
-        message: "Account Locked Due to Too Many Failed Attempts. Please Contact Admin" 
+      return res.status(400).json({
+        message: "Account Locked Due to Too Many Failed Attempts. Please Contact Admin",
       });
     }
-    
 
-    
     if (!user.otp || !user.otpExpiresAt) {
       return res.status(400).json({ message: "OTP is missing or invalid" });
     }
@@ -180,7 +247,6 @@ const verifyOtp = async (req, res) => {
       return res.status(400).json({ message: "OTP has expired" });
     }
 
-    
     const storedOtp = parseInt(user.otp, 10);
     if (storedOtp !== otp) {
       return res.status(400).json({ message: "Invalid OTP" });
@@ -213,27 +279,23 @@ const verifyOtp = async (req, res) => {
     // Fetch user roles
     const userRoles = await UserRole.findAll({ where: { userId: user.id } });
     const roles = userRoles.length
-      ? await Promise.all(userRoles.map(async (ur) => {
-          const role = await Role.findByPk(ur.roleId);
-          return role ? role.name : null;
-        }))
+      ? await Promise.all(
+          userRoles.map(async ur => {
+            const role = await Role.findByPk(ur.roleId);
+            return role ? role.name : null;
+          })
+        )
       : [];
 
     // Generate JWT token with roles
-    const token = jwt.sign(
-      { id: user.id, username: user.username, roles },
-      "your_secret_key",
-      { expiresIn: "30d" }
-    );
+    const token = jwt.sign({ id: user.id, username: user.username, roles }, "your_secret_key", { expiresIn: "30d" });
 
-    
-    
     const refreshToken = jwt.sign(
       { id: user.id, username: user.username, roles },
       "your_secret_key",
       { expiresIn: "30d" } // Longer-lived refresh token
     );
-    
+
     // Save refresh token in DB
     await RefreshToken.create({
       userId: user.id,
@@ -255,13 +317,11 @@ const verifyOtp = async (req, res) => {
       },
       roles,
     });
-
   } catch (error) {
     console.error("Error verifying OTP:", error);
     res.status(500).json({ message: "Internal server error", error: error.message });
   }
 };
-
 
 // ========================== GET CURRENT USER FUNCTION ==========================
 const getCurrentUser = async (req, res) => {
@@ -273,7 +333,7 @@ const getCurrentUser = async (req, res) => {
 
     const userRoles = await UserRole.findAll({ where: { userId: user.id } });
     const roles = await Promise.all(
-      userRoles.map(async (ur) => {
+      userRoles.map(async ur => {
         const role = await Role.findByPk(ur.roleId);
         return role ? role.name : null;
       })
@@ -284,7 +344,7 @@ const getCurrentUser = async (req, res) => {
         id: user.id,
         name: user.name,
         email: user.email,
-        roles: roles.filter((role) => role !== null),
+        roles: roles.filter(role => role !== null),
         token: req.header("Authorization"),
       },
     });
@@ -297,10 +357,10 @@ const getCurrentUser = async (req, res) => {
 const CreateAdminLogout = async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
-    const token = authHeader?.split(' ')[1];
+    const token = authHeader?.split(" ")[1];
 
     if (!token) {
-      return res.status(401).json({ error: 'Unauthorized: Token missing' });
+      return res.status(401).json({ error: "Unauthorized: Token missing" });
     }
 
     // Verify the token
@@ -308,39 +368,35 @@ const CreateAdminLogout = async (req, res) => {
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET || "your_secret_key");
     } catch (err) {
-      return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+      return res.status(401).json({ error: "Unauthorized: Invalid token" });
     }
 
     // Find the user
     const admin = await User.findByPk(decoded.id);
     if (!admin) {
-      return res.status(404).json({ error: 'Admin user not found' });
+      return res.status(404).json({ error: "Admin user not found" });
     }
 
     // Delete refresh token from DB
     const deleted = await RefreshToken.destroy({
       where: {
         userId: admin.id,
-        token: token
-      }
+        token: token,
+      },
     });
 
     // Update logout timestamp
     await admin.update({
       logout_at: new Date(),
-      login_at: null
+      login_at: null,
     });
-
 
     return res.status(200).json({
-      message: deleted
-        ? 'Admin successfully logged out, refresh token deleted'
-        : 'Admin logged out, but no matching refresh token found',
+      message: deleted ? "Admin successfully logged out, refresh token deleted" : "Admin logged out, but no matching refresh token found",
     });
-
   } catch (error) {
-    console.error('Logout error:', error);
-    return res.status(500).json({ error: 'Internal Server Error' });
+    console.error("Logout error:", error);
+    return res.status(500).json({ error: "Internal Server Error" });
   }
 };
 
@@ -356,11 +412,11 @@ const GetUserProfile = async (req, res) => {
     // Fetch user details along with roles
     const user = await User.findOne({
       where: { id: userId },
-      attributes: { exclude: ['password'] }, // exclude sensitive data
+      attributes: { exclude: ["password"] }, // exclude sensitive data
       include: [
         {
           model: Role,
-          attributes: ['id', 'name'],
+          attributes: ["id", "name"],
           through: { attributes: [] },
         },
       ],
@@ -380,6 +436,5 @@ const GetUserProfile = async (req, res) => {
   }
 };
 
-
 // ========================== EXPORT FUNCTIONS ==========================
-module.exports = { login, verifyOtp, getCurrentUser,CreateAdminLogout,GetUserProfile };
+module.exports = { login, verifyOtp, getCurrentUser, CreateAdminLogout, GetUserProfile };
