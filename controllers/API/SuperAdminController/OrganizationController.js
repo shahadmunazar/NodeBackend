@@ -943,6 +943,8 @@ const GetUserSubscriptionList = async (req, res) => {
         const billingCycle = plan.price_monthly ? "Monthly" : "Annually";
 
         return {
+          id: subscription.id,
+          user_id: subscription.user_id,
           organization_name: organization ? organization.organization_name : null,
           admin_name: user ? user.name : null,
           admin_contact: user ? user.email : null, // Assuming admin's contact is their email
