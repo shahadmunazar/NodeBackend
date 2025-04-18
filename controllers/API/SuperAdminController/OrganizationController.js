@@ -941,7 +941,10 @@ const GetUserSubscriptionList = async (req, res) => {
         });
 
         const billingCycle = plan.price_monthly ? "Monthly" : "Annually";
-
+        const today = new Date();
+        const endDate = new Date(subscription.validity_end_date);
+        const timeDiff = endDate.getTime() - today.getTime();
+        const left_days = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
         return {
           id: subscription.id,
           user_id: subscription.user_id,
@@ -950,6 +953,7 @@ const GetUserSubscriptionList = async (req, res) => {
           admin_contact: user ? user.email : null, // Assuming admin's contact is their email
           plan_name: plan ? plan.name : null,
           plan_tier: plan ? plan.tier : null,
+          left_days:left_days,
           subscription_status: subscription.subscription_status,
           subscription_start_date: formatDate(subscription.validity_start_date),
           renewal_end_date: formatDate(subscription.validity_end_date),
