@@ -228,11 +228,11 @@ const GetAllOrganization = async (req, res) => {
     const organizations = await Organization.findAll({
       order: [['id', 'DESC']]
     });
-    
+
     if (!organizations || organizations.length === 0) {
       return res.status(400).json({
         success: false,
-        status:400,
+        status: 400,
         message: "No organizations found",
       });
     }
@@ -352,7 +352,7 @@ const GetOrgnizationById = async (req, res) => {
     if (!organization) {
       return res.status(400).json({
         success: false,
-        status:400,
+        status: 400,
         message: "Organization not found",
       });
     }
@@ -478,13 +478,13 @@ const UpdateOrginzation = async (req, res) => {
 
     const organization = await Organization.findByPk(id);
     if (!organization) {
-      return res.status(400).json({ status:400,success: false, message: "Organization not found" });
+      return res.status(400).json({ status: 400, success: false, message: "Organization not found" });
     }
 
     await Promise.all(validateOrganizationUpdate.map(validation => validation.run(req)));
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ status:400,success: false, errors: errors });
+      return res.status(400).json({ status: 400, success: false, errors: errors });
     }
 
     const {
@@ -988,7 +988,7 @@ const UpdateSubscriber = async (req, res) => {
     if (!org_id || !plan_id || !subscription_id || !validity_start_date || !validity_end_date || !renewal_date) {
       return res.status(400).json({
         success: false,
-        status:400,
+        status: 400,
         message: "Organization ID, Plan ID, Subscription ID, Validity Start Date, Validity End Date, and Renewal Date are required.",
       });
     }
@@ -998,7 +998,7 @@ const UpdateSubscriber = async (req, res) => {
     if (!organization) {
       return res.status(400).json({
         success: false,
-        status:400,
+        status: 400,
         message: "Organization not found.",
       });
     }
@@ -1008,7 +1008,7 @@ const UpdateSubscriber = async (req, res) => {
     if (!plan) {
       return res.status(400).json({
         success: false,
-        status:400,
+        status: 400,
         message: "Plan not found.",
       });
     }
@@ -1024,7 +1024,7 @@ const UpdateSubscriber = async (req, res) => {
     if (!subscription) {
       return res.status(400).json({
         success: false,
-        status:400,
+        status: 400,
         message: "Subscription not found.",
       });
     }
@@ -1072,7 +1072,7 @@ const UpdateSubscriber = async (req, res) => {
 
 const GetActivityLogDetails = async (req, res) => {
   try {
-    const { subscription_id } = req.body;
+    const { subscription_id } = req.query;
 
     if (!subscription_id) {
       return res.status(400).json({
@@ -1113,12 +1113,12 @@ const GetActivityLogDetails = async (req, res) => {
       order: [['createdAt', 'DESC']],
     });
 
-    if (!activityLogs.length) {
-      return res.status(400).json({
-        success: false,
-        message: "No activity logs found for this subscription.",
-      });
-    }
+    // if (!activityLogs.length) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: "No activity logs found for this subscription.",
+    //   });
+    // }
 
     // ✅ Structured Response
     return res.status(200).json({
