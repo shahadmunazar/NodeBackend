@@ -6,13 +6,15 @@ const Role = require("../../../models/role"); // adjust the path if needed
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const { Op } = require("sequelize");
+
 const https = require('https');
 const bcrypt = require("bcrypt");
 const sequelize = require("../../../config/database");
 const { DataTypes } = require("sequelize");
 const RefreshToken = require("../../../models/refreshToken")(sequelize, DataTypes);
 const { sendPasswordResetEmail } = require("../../../utils/sendPasswordResetEmail");
-
+const Organization = require("../../../models/organization")(sequelize, DataTypes);
+const OrganizationSubscribeUser = require("../../../models/organization_subscribeuser")(sequelize, DataTypes);
 const emailQueue = require("../../../queues/emailQueue"); // Ensure the emailQueue is correctly imported
 const SuperAdminProfile = async (req, res) => {
   try {
@@ -270,73 +272,69 @@ const SuperAdminLogout = async (req, res) => {
 
 const SendEmailForgetPassword = async (req, res) => {
   try {
-    const { id } = req.body;
-    if (!id) {
-      return res.status(400).json({ message: "User ID is required" });
+    const { email } = req.body;
+
+    // 🔍 Validate input
+    if (!email) {
+      return res.status(400).json({ message: "Email is required" });
     }
 
-    const user = await User.findByPk(id); // Ensure 'User' model is correctly imported
+    // 🔎 Find user by email
+    const user = await User.findOne({ where: { email } });
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json({ message: "User not found with this email" });
     }
 
-    // Generate a reset token and set its expiry time
+    // 🔐 Generate reset token and expiry
     const resetToken = crypto.randomBytes(32).toString("hex");
-    const resetTokenExpiry = new Date(Date.now() + 10 * 60 * 1000); // Token expiry time set to 10 minutes
+    const resetTokenExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
-    // Update user record with reset token and its expiry
+    // 💾 Update user with reset token
     await user.update({
       invite_token: resetToken,
       invite_expires_at: resetTokenExpiry,
     });
 
-    // Prepare the reset link
+    // 📩 Reset link
     const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
-    // Add a job to the email queue to send the reset email
+    // 📬 Send email via BullMQ queue
     await emailQueue.add("send-password-reset", {
       to: user.email,
       subject: "Password Reset Request",
-      text: `Click on the link to reset your password: ${resetLink}`,
+      text: `Click the link to reset your password: ${resetLink}`,
       html: `
       <div style="max-width: 600px; margin: auto; font-family: 'Segoe UI', Roboto, sans-serif; background-color: #f7f7f7; padding: 30px; border-radius: 8px;">
         <div style="background-color: #fff; padding: 40px; border-radius: 8px; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.05);">
           <h2 style="color: #333; margin-bottom: 20px;">Password Reset Request</h2>
-          <p style="font-size: 15px; color: #555;">Hi there,</p>
+          <p style="font-size: 15px; color: #555;">Hi ${user.name || 'there'},</p>
           <p style="font-size: 15px; color: #555;">
             We received a request to reset your Konnect account password. If this was you, click the button below to proceed.
           </p>
-
           <p style="text-align: center; margin: 30px 0;">
             <a href="${resetLink}" 
               style="background-color: #007BFF; color: white; padding: 12px 25px; border-radius: 5px; text-decoration: none; font-size: 16px;">
               Reset My Password
             </a>
           </p>
-
           <p style="font-size: 14px; color: #666;">
-            This link will expire in <strong>10 minutes</strong> for your security. If you didn’t request this, please ignore this email or contact support.
+            This link will expire in <strong>10 minutes</strong>. If you didn’t request this, please ignore this email.
           </p>
-
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;" />
-
           <p style="font-size: 13px; color: #999;">
-            If you're having trouble clicking the reset button, copy and paste the URL below into your web browser:
-            <br />
+            Trouble with the button? Paste this link in your browser:<br />
             <a href="${resetLink}" style="color: #007BFF;">${resetLink}</a>
           </p>
-
-          <p style="margin-top: 40px; font-size: 14px; color: #444;">Warm regards,<br><strong>The Konnect Team</strong></p>
+          <p style="margin-top: 40px; font-size: 14px; color: #444;">Regards,<br><strong>The Konnect Team</strong></p>
         </div>
-
         <div style="text-align: center; font-size: 12px; color: #aaa; margin-top: 20px;">
           © ${new Date().getFullYear()} Konnect. All rights reserved.
         </div>
       </div>
-    `,
+      `,
     });
 
-    // Respond to the client
+    // ✅ Success response
     return res.status(200).json({
       message: "Password reset email has been sent.",
     });
@@ -512,23 +510,22 @@ const GetLocation = async (req, res) => {
 };
 
 
+
+
 const ProfileUpdate = async (req, res) => {
   try {
     const { name, email, phone, address } = req.body;
 
-    // 🔐 Get user ID from authenticated token/middleware
     const userId = req.user?.id;
     if (!userId) {
       return res.status(400).json({ message: 'Unauthorized' });
     }
 
-    // 🔎 Fetch the user from the database
     const user = await User.findByPk(userId);
     if (!user) {
       return res.status(400).json({ message: 'User not found' });
     }
 
-    // ✅ Update fields if provided
     await user.update({
       name: name ?? user.name,
       email: email ?? user.email,
@@ -555,6 +552,54 @@ const ProfileUpdate = async (req, res) => {
   }
 };
 
+const DashBoard = async (req, res) => {
+  try {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    // 🔢 Total counts
+    const totalOrganizations = await Organization.count();
+    const totalSubscribers = await OrganizationSubscribeUser.count();
+
+    // 📆 Today's counts
+    const todayOrganizations = await Organization.count({
+      where: {
+        createdAt: {
+          [Op.between]: [todayStart, todayEnd],
+        },
+      },
+    });
+
+    const todaySubscribers = await OrganizationSubscribeUser.count({
+      where: {
+        createdAt: {
+          [Op.between]: [todayStart, todayEnd],
+        },
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        totalOrganizations,
+        todayOrganizations,
+        totalSubscribers,
+        todaySubscribers,
+      },
+    });
+  } catch (error) {
+    console.error('Dashboard error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   SuperAdminProfile,
   CheckPingSessionActivity,
@@ -563,6 +608,7 @@ module.exports = {
   GetAllRoles,
   GetLocation,
   ProfileUpdate,
+  DashBoard,
   SuperAdminLogout,
   SendEmailForgetPassword,
   UpdatePasswordBySuperAdmin,
