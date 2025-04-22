@@ -12,6 +12,7 @@ const {
   SuperAdminLogout,
   SendEmailForgetPassword,
   UpdatePasswordBySuperAdmin,
+  ProfileUpdate
 } = require("../controllers/API/SuperAdminController/ProfileController");
 const { CreateIndustry, SoftDeleteIndustry, UpdateIndustry, GetIndustryById, GetAllIndustries } = require("../controllers/API/SuperAdminController/IndustryController");
 const { CreatePlans, GetPlans, GetPlanById, UpdatePlan, DeletePlan, TogglePlanStatus } = require("../controllers/API/SuperAdminController/PlansController");
@@ -64,6 +65,7 @@ router.put("/industries/:id", ...WithSuperAdminAndRole(UpdateIndustry));
 router.delete("/industries/:id", ...WithSuperAdminAndRole(SoftDeleteIndustry));
 
 router.put("/update-password-by-superadmin", ...WithSuperAdminAndRole(UpdatePasswordBySuperAdmin));
+router.put("/profile-update", ...WithSuperAdminAndRole(ProfileUpdate));
 router.post("/send-forget-password-to", ...WithSuperAdminAndRole(SendEmailForgetPassword));
 
 router.post("/superadmin-logout", ...WithSuperAdminAndRole(SuperAdminLogout));
@@ -77,8 +79,6 @@ router.put("/update-subsciption-user-plans", ...WithSuperAdminAndRole(UpdateSubs
 router.get("/get-subscriber-activity-logs", ...WithSuperAdminAndRole(GetActivityLogDetails));
 
 router.put("/update-payment-status", ...WithSuperAdminAndRole(UpdatePlanStatus));
-
-
 
 router.post("/create-plans", ...WithSuperAdminAndRole(CreatePlans));
 router.get("/plans", ...WithSuperAdminAndRole(GetPlans));
