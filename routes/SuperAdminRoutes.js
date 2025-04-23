@@ -58,7 +58,6 @@ router.put("/toggle-status-managment/:id", ...WithSuperAdminAndRole(ToogleStatus
 router.get("/super-admin-profile", ...WithSuperAdminAndRole(SuperAdminProfile));
 router.put("/check-ping-session", ...WithSuperAdminAndRole(CheckPingSessionActivity));
 
-
 //Create For Industry
 
 router.post("/create-industry", ...WithSuperAdminAndRole(CreateIndustry));
