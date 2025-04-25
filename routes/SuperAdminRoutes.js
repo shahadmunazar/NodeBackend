@@ -39,7 +39,7 @@ const uploadFiles = require("../middleware/uploadOrganizationFiles");
  * @param {string} role - Role to check for access.
  * @returns {Function} - Middleware with checkAuth, checkRole, and the handler.
  */
-
+  
 //for SuperAdmin Define Authentication And Authorization Variable
 
 const WithSuperAdminAndRole = (handler, role = "superadmin") => {
