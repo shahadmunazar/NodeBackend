@@ -15,7 +15,8 @@ const {
   ProfileUpdate,
   ConfirmEmailChange,
   DashBoard,
-  Activetwofa,GetStatusOfMultiFactor
+  Activetwofa,GetStatusOfMultiFactor,
+  SendONBoardingEmail
 } = require("../controllers/API/SuperAdminController/ProfileController");
 const { CreateIndustry, SoftDeleteIndustry, UpdateIndustry, GetIndustryById, GetAllIndustries } = require("../controllers/API/SuperAdminController/IndustryController");
 const { CreatePlans, GetPlans, GetPlanById, UpdatePlan, DeletePlan, TogglePlanStatus } = require("../controllers/API/SuperAdminController/PlansController");
@@ -58,6 +59,11 @@ router.put("/toggle-status-managment/:id", ...WithSuperAdminAndRole(ToogleStatus
 router.get("/super-admin-profile", ...WithSuperAdminAndRole(SuperAdminProfile));
 router.put("/check-ping-session", ...WithSuperAdminAndRole(CheckPingSessionActivity));
 
+router.post("/forget-password", ...WithSuperAdminAndRole(ForgetPassword));
+router.post("/update-password", ...WithSuperAdminAndRole(UpdatePassword));
+
+
+router.post('/send-onboarding-email',...WithSuperAdminAndRole(SendONBoardingEmail));
 //Create For Industry
 
 router.post("/create-industry", ...WithSuperAdminAndRole(CreateIndustry));

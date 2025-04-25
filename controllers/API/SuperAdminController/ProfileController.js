@@ -6,7 +6,6 @@ const Role = require("../../../models/role"); // adjust the path if needed
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const { Op } = require("sequelize");
-
 const https = require("https");
 const bcrypt = require("bcrypt");
 const sequelize = require("../../../config/database");
@@ -410,7 +409,7 @@ const UpdatePasswordBySuperAdmin = async (req, res) => {
   try {
     const { email, current_password, password, confirm_password } = req.body;
 
-    // 🛡 Validate input
+    
     if (!email || !current_password || !password || !confirm_password) {
       return res.status(400).json({ message: "All fields are required." });
     }
@@ -751,6 +750,30 @@ const GetStatusOfMultiFactor = async (req, res) => {
   }
 };
 
+
+const SendONBoardingEmail = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({
+      where: {
+        email: email
+      }
+    });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+    await user.update({
+      onboarding_email_sent: false,
+      passwordChanged: true
+    });
+    return res.status(200).json({ message: 'User status updated successfully.' });
+
+  } catch (error) {
+    console.error('Error in SendONBoardingEmail:', error);
+    return res.status(500).json({ message: 'Internal server error.' });
+  }
+};
+
 module.exports = {
   SuperAdminProfile,
   CheckPingSessionActivity,
@@ -765,5 +788,5 @@ module.exports = {
   ConfirmEmailChange,
   UpdatePasswordBySuperAdmin,
   Activetwofa,
-  GetStatusOfMultiFactor
+  GetStatusOfMultiFactor,SendONBoardingEmail
 };
