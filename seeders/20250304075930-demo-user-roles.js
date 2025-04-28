@@ -10,7 +10,7 @@ module.exports = {
 
     return queryInterface.bulkInsert("UserRoles", [
       {userId: userMap['shahadmunazar@gmail.com'],roleId: roleMap['superadmin'],createdAt: new Date(), updatedAt: new Date()},
-      {userId: userMap['avdeshy213@gmail.com'],roleId: roleMap['superadmin'],createdAt: new Date(), updatedAt: new Date()},
+      {userId: userMap['avdeshy213@gmail.com'],roleId: roleMap['organization'],createdAt: new Date(), updatedAt: new Date()},
       { userId: userMap["shahad1932@gmail.com"], roleId: roleMap["contractor"], createdAt: new Date(), updatedAt: new Date() },
       { userId: userMap["shahad1932a@gmail.com"], roleId: roleMap["admin"], createdAt: new Date(), updatedAt: new Date() },
       { userId: userMap["manager@example.com"], roleId: roleMap["manager"], createdAt: new Date(), updatedAt: new Date() },
