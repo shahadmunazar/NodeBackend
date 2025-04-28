@@ -365,11 +365,11 @@ const verifyOtp = async (req, res) => {
     const userRoles = await UserRole.findAll({ where: { userId: user.id } });
     const roles = userRoles.length
       ? await Promise.all(
-          userRoles.map(async ur => {
-            const role = await Role.findByPk(ur.roleId);
-            return role ? role.name : null;
-          })
-        )
+        userRoles.map(async ur => {
+          const role = await Role.findByPk(ur.roleId);
+          return role ? role.name : null;
+        })
+      )
       : [];
 
     // Generate JWT token with roles
@@ -424,9 +424,8 @@ const SendOnBoardingAcceptationEmailtoSuperAdmin = async (user, organization) =>
         </ul>
 
         <p>To approve or reject this request:</p>
-        <a href="https://your-panel.com/approve/${
-          user.id
-        }" style="background-color: green; color: white; padding: 10px 15px; text-decoration: none; margin-right: 10px;">Approve</a>
+        <a href="https://your-panel.com/approve/${user.id
+      }" style="background-color: green; color: white; padding: 10px 15px; text-decoration: none; margin-right: 10px;">Approve</a>
         <a href="https://your-panel.com/reject/${user.id}" style="background-color: red; color: white; padding: 10px 15px; text-decoration: none;">Reject</a>
 
         <p>Thanks,<br/>Team</p>
