@@ -16,7 +16,7 @@ const { DataTypes } = require("sequelize");
 const RefreshToken = require("../models/refreshToken")(sequelize, DataTypes);
 const UserLogin = require("../models/user_logins");
 const Organization = require("../models/organization")(sequelize, DataTypes);
-const Notification =  require("../models/notification")(sequelize,DataTypes);
+const Notification = require("../models/notification")(sequelize, DataTypes);
 const JWT_SECRET = process.env.JWT_SECRET || "your_secret_key";
 const EMAIL_USER = process.env.EMAIL_USER;
 const EMAIL_PASS = process.env.EMAIL_PASS;
@@ -463,7 +463,6 @@ const verifyOtp = async (req, res) => {
     res.status(500).json({ message: "Internal server error", error: error.message });
   }
 };
-
 
 
 const SendOnBoardingAcceptationEmailtoSuperAdmin = async (user, organization) => {
