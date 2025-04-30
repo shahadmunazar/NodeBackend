@@ -315,7 +315,7 @@ const ResendInvitationEmail = async (req, res) => {
 
 
 
-const handleContractorTokenInvitation  = async(req,res)=>{
+const handleContractorTokenInvitation = async (req, res) => {
   try {
     const { token } = req.query;
     if (!token) {
@@ -339,7 +339,7 @@ const handleContractorTokenInvitation  = async(req,res)=>{
       return res.status(410).json({ error: "Invitation link has expired." });
     }
     await invitation.update({ status: 'accepted' });
-    return res.status(200).json({ message: "Invitation accepted."});
+    return res.status(200).json({ message: "Invitation accepted." });
   } catch (error) {
     console.error("Error validating invitation token:", error);
     return res.status(500).json({ error: "Internal Server Error" });
