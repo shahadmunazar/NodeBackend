@@ -87,30 +87,30 @@ const SendIvitationLinkContractor = async (req, res) => {
     const { email, isResend = false } = req.body;
     const user = req.user;
     const contractor_name = user.name || email;
-
     const token = crypto.randomBytes(64).toString("hex");
     const expiresAt = moment().add(72, "hours").toDate();
-
     const organization = await Organization.findOne({
       where: { user_id: user.id },
     });
-
     if (!organization) {
       return res.status(404).json({ message: "Organization not found." });
     }
-
     const existing = await ContractorInvitation.findOne({
-      where: { contractor_email: email, status: "pending" },
+      where: { contractor_email: email },
     });
-
-    // Case 1: Existing invite found, and it's not a resend request
-    if (existing && !isResend) {
+    if (existing) {
+      if (existing.status === "accepted") {
+        return res.status(400).json({ message: "This email has already accepted the invitation." });
+      }
+      if (!isResend) {
+        return res.status(400).json({ message: "This email has already been invited." });
+      }
       await ContractorInvitation.update(
         {
           invite_token: token,
           expires_at: expiresAt,
           sent_at: new Date(),
-          status:"revoked"
+          status: "revoked",
         },
         { where: { id: existing.id } }
       );
@@ -118,7 +118,7 @@ const SendIvitationLinkContractor = async (req, res) => {
       const htmlContent = generateInviteHTML(user.name || user.email, organization.organization_name, inviteUrl);
       await emailQueue.add("sendContractorInvite", {
         to: email,
-        subject: "Reminder: You're invited to join as a contractor!",
+        subject: "You're invited to join as a contractor!",
         html: htmlContent,
         data: {
           name: contractor_name,
@@ -130,14 +130,7 @@ const SendIvitationLinkContractor = async (req, res) => {
       return res.status(200).json({ message: "Invitation resent successfully." });
     }
 
-    // Case 2: Either it's a resend OR first time (no record exists)
-    if (isResend) {
-      await ContractorInvitation.update(
-        { status: "revoked" },
-        { where: { contractor_email: email, status: "pending" } }
-      );
-    }
-
+    // No existing invitation: create a new one
     const inviteUrl = `${process.env.FRONTEND_URL}/contractor/register?token=${token}`;
     const htmlContent = generateInviteHTML(user.name || user.email, organization.organization_name, inviteUrl);
 
@@ -169,7 +162,7 @@ const SendIvitationLinkContractor = async (req, res) => {
   }
 };
 
-// ✅ Extracted email HTML builder
+// Helper to generate consistent HTML email content
 function generateInviteHTML(senderName, organizationName, inviteUrl) {
   return `
     <html>
@@ -188,6 +181,8 @@ function generateInviteHTML(senderName, organizationName, inviteUrl) {
     </html>
   `;
 }
+
+
 
 
 
