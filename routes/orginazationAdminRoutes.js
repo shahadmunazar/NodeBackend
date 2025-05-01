@@ -5,8 +5,22 @@ const router = express.Router();
 const {
   GetOrginazationDetails,
   OrginazationAdminLogout,
-  SendIvitationLinkContractor,GetInviationLinksList,ResendInvitationEmail,handleContractorTokenInvitation,SendverificationCode,VerifyMultifactorAuth
+  SendIvitationLinkContractor,
+  GetInviationLinksList,
+  ResendInvitationEmail,
+  handleContractorTokenInvitation,
+  SendverificationCode,
+  VerifyMultifactorAuth,
 } = require("../controllers/API/OrginazationAdminController/OrginazationControllerAdmin");
+const {
+  CreateContractorRegistration,
+  UploadInsuranceContrator,
+  UploadPublicLiability,
+  UploadSafetyMNContractor,
+  GetInsuranceContractor,
+  GetPublicLiabilityContractor,
+  GetSafetyMangmentContractor
+} = require("../controllers/API/ContractorAdminController/RegistrationContractorController");
 
 const { authenticateUser, authorizeRoles } = require("../middleware/auth");
 
@@ -14,14 +28,26 @@ const WithOrginazationAdminAndRole = (handler, role = "organization") => {
   return [authenticateUser, authorizeRoles(role), handler];
 };
 
+const uploadFiles = require("../middleware/uploadOrganizationFiles");
+
 router.post("/send-multifactor-verification", SendverificationCode);
-router.post("/verify-multifactor-authentication", VerifyMultifactorAuth)
+router.post("/verify-multifactor-authentication", VerifyMultifactorAuth);
+
+router.post("/create-registration-contractor", CreateContractorRegistration);
+
+router.post("/upload-insurace-contractor", uploadFiles, UploadInsuranceContrator);
+router.post("/upload-public-liability", uploadFiles, UploadPublicLiability);
+router.post("/upload-safety-managment", uploadFiles, UploadSafetyMNContractor);
+
+router.get("/get-insurance-contractor", GetInsuranceContractor);
+router.get("/get-insurance-contractor", GetPublicLiabilityContractor);
+router.get("/get-insurance-contractor", GetSafetyMangmentContractor);
+
 router.get("/admin-details", ...WithOrginazationAdminAndRole(GetOrginazationDetails));
 router.post("/logout", ...WithOrginazationAdminAndRole(OrginazationAdminLogout));
 router.post("/send-contract-invitation-link", ...WithOrginazationAdminAndRole(SendIvitationLinkContractor));
 router.get("/get-all-invitation-link", ...WithOrginazationAdminAndRole(GetInviationLinksList));
 router.post("/resend-email-to-invitation", ...WithOrginazationAdminAndRole(ResendInvitationEmail));
-
 
 router.get("/contractor/validate-invitation", handleContractorTokenInvitation);
 
