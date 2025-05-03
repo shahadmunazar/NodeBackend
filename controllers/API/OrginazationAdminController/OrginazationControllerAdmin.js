@@ -190,11 +190,11 @@ const GetInviationLinksList = async (req, res) => {
   try {
     const user = req.user;
     const user_id = user.id;
-    console.log("user",user_id);
+    console.log("user", user_id);
 
     const invitation_list = await ContractorInvitation.findAll({
-      where:{
-        invited_by:user_id
+      where: {
+        invited_by: user_id
       }
     });
 
@@ -276,11 +276,9 @@ const ResendInvitationEmail = async (req, res) => {
       <html>
         <body style="font-family: Arial, sans-serif; line-height: 1.6;">
           <p>Hi there,</p>
-          <p><strong>${FindInvitedUser.name || FindInvitedUser.email}</strong> from <strong>${
-      findOrganization.organization_name
-    }</strong> has invited you to fill in a pre-qualification form which, provided it is approved internally by ${
-      findOrganization.organization_name
-    }, will mean that your organisation is prequalified to perform work for ${findOrganization.organization_name}.</p>
+          <p><strong>${FindInvitedUser.name || FindInvitedUser.email}</strong> from <strong>${findOrganization.organization_name
+      }</strong> has invited you to fill in a pre-qualification form which, provided it is approved internally by ${findOrganization.organization_name
+      }, will mean that your organisation is prequalified to perform work for ${findOrganization.organization_name}.</p>
           <p>If you are not the person who will register your business and complete the prequalification process, please forward this email including the link to the appropriate person.</p>
           <p>Should you have any questions or concerns about this process, in the first instance please discuss with your key contact at ${findOrganization.organization_name}.</p>
           <p>
@@ -409,7 +407,7 @@ const SendverificationCode = async (req, res) => {
         </div>
       `,
     });
-    return res.status(200).json({ status:200,message: "OTP sent successfully" });
+    return res.status(200).json({ status: 200, message: "OTP sent successfully" });
   } catch (error) {
     console.error("Error sending OTP:", error);
     return res.status(500).json({ error: "Failed to send OTP" });
@@ -466,15 +464,15 @@ const VerifyMultifactorAuth = async (req, res) => {
 
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
     const tokenFind = invitation.invite_token;
-    
+
     const fullUrl = `${frontendUrl}/contractor/prequalification/${tokenFind}`;
-    
+
     // Step 8: Return the success message with registration details
     return res.status(200).json({
       message: "OTP verified successfully",
-      status:200,
+      status: 200,
       registration: contractorRegistration,
-      contractor_url:fullUrl
+      contractor_url: fullUrl
     });
   } catch (error) {
     console.error("Error verifying OTP:", error);
