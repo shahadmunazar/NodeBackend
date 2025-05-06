@@ -698,7 +698,7 @@ const DeleteSafetyMContrator = async(req,res)=>{
 
 const CheckContractorRegisterStatus = async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email } = req.query;
     if (!email) {
       return res.status(400).json({ message: "Email is required." });
     }
