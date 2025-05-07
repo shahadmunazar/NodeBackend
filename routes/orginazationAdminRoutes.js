@@ -27,7 +27,9 @@ const {
   DeletePublicLContrator,
   DeleteSafetyMContrator,
   CheckContractorRegisterStatus,
-  DeleteContractorRecords
+  DeleteContractorRecords,
+  GetContractorDetails,
+  MakePdfToAllContractorForm
   
 } = require("../controllers/API/ContractorAdminController/RegistrationContractorController");
 
@@ -52,11 +54,15 @@ router.get("/get-insurance-contractor", GetInsuranceContractor);
 router.get("/get-public-liability-contractor", GetPublicLiabilityContractor);
 router.get("/get-safety-managment-contractor", GetSafetyMangmentContractor);
 
+router.get("/get-details-of-contructor", GetContractorDetails)
+
 router.delete("/delete-insurance-contractor", DeleteInsuranceContrator);
 router.delete("/public-liability-contractor", DeletePublicLContrator);
 router.delete("/delete-safety-managment-contractor", DeleteSafetyMContrator);
 router.get("/check-contractor-register", CheckContractorRegisterStatus);
 router.delete("/delete-contractor-records",DeleteContractorRecords);
+
+
 
 router.get("/admin-details", ...WithOrginazationAdminAndRole(GetOrginazationDetails));
 router.post("/logout", ...WithOrginazationAdminAndRole(OrginazationAdminLogout));
@@ -66,7 +72,7 @@ router.get("/get-details-of-invitation", ...WithOrginazationAdminAndRole(GetDeta
 router.post("/update-comments-of-contructor", ...WithOrginazationAdminAndRole(UpdateContractorComments));
 router.put("/update-submission-status",...WithOrginazationAdminAndRole(UpdateSubmissionStatus));
 router.post("/resend-email-to-invitation", ...WithOrginazationAdminAndRole(ResendInvitationEmail));
-
+router.post("/make-pdf-to-contractor-form", ...WithOrginazationAdminAndRole(MakePdfToAllContractorForm));
 router.get("/contractor/validate-invitation", handleContractorTokenInvitation);
 
 module.exports = router;

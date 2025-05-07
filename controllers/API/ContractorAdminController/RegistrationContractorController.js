@@ -69,27 +69,20 @@ const validateContractorRegistration = [
 const CreateContractorRegistration = async (req, res) => {
   try {
     await Promise.all(validateContractorRegistration.map(validation => validation.run(req)));
-
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ success: false, errors: errors.array() });
     }
-
     const { id, contractor_invitation_id, abn_number, new_start } = req.body;
-
-    if (!id) {
-      return res.status(400).json({
-        success: false,
-        message: "Contractor registration ID is required.",
-      });
+    let existing = null;
+    if (id) {
+      existing = await ContractorRegistration.findOne({ where: { id } });
     }
 
-    const existing = await ContractorRegistration.findOne({ where: { id } });
-
-    if (!existing) {
+    if (!existing && !new_start) {
       return res.status(404).json({
         success: false,
-        message: "Contractor registration not found.",
+        message: "Contractor registration not found and new_start is false.",
       });
     }
 
@@ -144,18 +137,20 @@ const CreateContractorRegistration = async (req, res) => {
       "public_liability_doc_id",
       "organization_safety_management_id",
     ];
+
     const fieldsToUse = {};
     updatableFields.forEach(field => {
       if (req.body[field] !== undefined) {
         fieldsToUse[field] = req.body[field];
       }
     });
-    if (new_start === true) {
+
+    if (new_start === true || !existing) {
+      // Check ABN duplication for new
       if (abn_number) {
         const abnExists = await ContractorRegistration.findOne({
           where: {
             abn_number,
-            id: { [Op.ne]: id },
           },
         });
 
@@ -167,19 +162,22 @@ const CreateContractorRegistration = async (req, res) => {
         }
       }
 
-      fieldsToUse.contractor_invitation_id = existing.contractor_invitation_id;
-      fieldsToUse.invited_organization_by = existing.invited_organization_by;
+      // Fallback to values from old record if it existed
+      if (existing) {
+        fieldsToUse.contractor_invitation_id = existing.contractor_invitation_id;
+        fieldsToUse.invited_organization_by = existing.invited_organization_by;
+      }
 
       const newRegistration = await ContractorRegistration.create(fieldsToUse);
 
-      return res.status(200).json({
+      return res.status(201).json({
         success: true,
-        status: 200,
+        status: 201,
         message: "New contractor registration created successfully.",
         data: newRegistration,
       });
-
     } else {
+      
       if (abn_number && abn_number !== existing.abn_number) {
         const abnExists = await ContractorRegistration.findOne({
           where: {
@@ -191,7 +189,7 @@ const CreateContractorRegistration = async (req, res) => {
         // if (abnExists) {
         //   return res.status(400).json({
         //     success: false,
-        //     message: "This ABN number is already used by another contractorss.",
+        //     message: "This ABN number is already used by another contractor.",
         //   });
         // }
       }
@@ -205,7 +203,6 @@ const CreateContractorRegistration = async (req, res) => {
         data: existing,
       });
     }
-
   } catch (error) {
     console.error("Error in ContractorRegistration:", error);
     return res.status(500).json({
@@ -215,6 +212,7 @@ const CreateContractorRegistration = async (req, res) => {
     });
   }
 };
+
 
 
 
@@ -779,10 +777,12 @@ const DeleteSafetyMContrator = async(req,res)=>{
 
 const CheckContractorRegisterStatus = async (req, res) => {
   try {
-    const { email } = req.query;
-    if (!email) {
-      return res.status(400).json({ message: "Email is required." });
+    const { contractor_invitation_id } = req.body;
+
+    if (!contractor_invitation_id) {
+      return res.status(400).json({ message: "Contractor invitation ID is required." });
     }
+
     const getTimeAgo = (timestamp) => {
       const now = new Date();
       const past = new Date(timestamp);
@@ -800,151 +800,141 @@ const CheckContractorRegisterStatus = async (req, res) => {
       if (minutes > 0) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
       return `${seconds} second${seconds !== 1 ? 's' : ''} ago`;
     };
-    const findRecordContractor = await ContractorInvitation.findAll({
-      where: {
-        contractor_email: email
-      }
+
+    // Fetch the registrations for the given contractor invitation ID
+    const registrations = await ContractorRegistration.findAll({
+      where: { contractor_invitation_id },
+      attributes: [
+        'id',
+        'invited_organization_by',
+        'abn_number',
+        'contractor_company_name',
+        'contractor_trading_name',
+        'company_structure',
+        'company_representative_first_name',
+        'company_representative_last_name',
+        'position_at_company',
+        'address',
+        'street',
+        'suburb',
+        'state',
+        'contractor_phone_number',
+        'service_to_be_provided',
+        'employee_insure_doc_id',
+        'public_liability_doc_id',
+        'organization_safety_management_id',
+        'submission_status',
+        'updatedAt'
+      ]
     });
-    if (findRecordContractor.length === 0) {
+
+    if (!registrations || registrations.length === 0) {
       return res.status(200).json({
         registered: false,
-        message: "No contractor record found with this email."
+        message: "No contractor registration found for the provided invitation ID."
       });
     }
-    const enrichedData = await Promise.all(
-      findRecordContractor.map(async (record) => {
-        const plainRecord = record.toJSON();
-        const registration = await ContractorRegistration.findAll({
-          where: {
-            contractor_invitation_id: plainRecord.id
-          },
-          attributes: [
-            'id',
-            'invited_organization_by',
-            'abn_number',
-            'contractor_company_name',
-            'contractor_trading_name',
-            'company_structure',
-            'company_representative_first_name',
-            'company_representative_last_name',
-            'position_at_company',
-            'address',
-            'street',
-            'suburb',
-            'state',
-            'contractor_phone_number',
-            'service_to_be_provided',
-            'employee_insure_doc_id',
-            'public_liability_doc_id',
-            'organization_safety_management_id',
-            'submission_status'
-          ]
-        });
-        let incompletePage = null;
-        let formStatus = 'incomplete';
-        if (registration) {
-          if (registration.submission_status === 'confirm_submit') {
-            incompletePage = null;
-            formStatus = 'complete';
-          } else {
-            const requiredPage1Fields = [
-              'invited_organization_by',
-              'abn_number',
-              'contractor_company_name',
-              'contractor_trading_name',
-              'company_structure',
-              'company_representative_first_name',
-              'company_representative_last_name',
-              'position_at_company',
-              'address',
-              'street',
-              'suburb',
-              'state',
-              'contractor_phone_number',
-              'service_to_be_provided'
-            ];
-            const isPage1Incomplete = requiredPage1Fields.some(
-              (field) => registration[field] === null || registration[field] === ''
-            );
-            if (isPage1Incomplete) {
-              incompletePage = 1;
-            } else if (!registration.employee_insure_doc_id) {
-              incompletePage = 2;
-            } else if (!registration.public_liability_doc_id) {
-              incompletePage = 3;
-            } else if (!registration.organization_safety_management_id) {
-              incompletePage = 4;
-            } else {
-              formStatus = 'complete';
-            }
-          }
+
+    // Map through registrations and flatten the structure
+    const enrichedData = registrations.map((registration) => {
+      const plain = registration.toJSON();
+
+      let incompletePage = null;
+      let formStatus = 'incomplete';
+
+      if (plain.submission_status === 'confirm_submit') {
+        formStatus = 'complete';
+      } else {
+        const requiredPage1Fields = [
+          'invited_organization_by',
+          'abn_number',
+          'contractor_company_name',
+          'contractor_trading_name',
+          'company_structure',
+          'company_representative_first_name',
+          'company_representative_last_name',
+          'position_at_company',
+          'address',
+          'street',
+          'suburb',
+          'state',
+          'contractor_phone_number',
+          'service_to_be_provided'
+        ];
+
+        const isPage1Incomplete = requiredPage1Fields.some(
+          (field) => !plain[field]
+        );
+
+        if (isPage1Incomplete) {
+          incompletePage = 1;
+        } else if (!plain.employee_insure_doc_id) {
+          incompletePage = 2;
+        } else if (!plain.public_liability_doc_id) {
+          incompletePage = 3;
+        } else if (!plain.organization_safety_management_id) {
+          incompletePage = 4;
+        } else {
+          formStatus = 'complete';
         }
-        return {
-          ...plainRecord,
-          lastUpdatedAgo: getTimeAgo(plainRecord.updatedAt),
-          registrationInfo: registration || null,
-          incompletePage,
-          formStatus
-        };
-      })
-    );
+      }
+
+      return {
+        ...plain, 
+        lastUpdatedAgo: getTimeAgo(plain.updatedAt),
+        incompletePage,
+        formStatus
+      };
+    });
 
     return res.status(200).json({
       registered: true,
       status: 200,
       data: enrichedData
     });
+
   } catch (error) {
-    console.error("Error checking contractor register status:", error);
+    console.error("Error checking contractor registration status:", error);
     return res.status(500).json({
       message: "Internal server error",
       error: error.message
     });
   }
 };
+
+
 
 
 
 const DeleteContractorRecords = async (req, res) => {
   try {
     const { contractor_id } = req.body;
-
     if (!contractor_id) {
       return res.status(400).json({ message: "Contractor ID is required." });
     }
-    const contractorDel = await ContractorInvitation.findOne({
+    const contractorReg = await ContractorRegistration.findOne({
       where: { id: contractor_id }
     });
-
-    if (!contractorDel) {
-      return res.status(404).json({ message: "Contractor invitation not found." });
+    if (!contractorReg) {
+      return res.status(404).json({ message: "Contractor registration not found." });
     }
-    const deleteContractorReg = await ContractorRegistration.findOne({
-      where: { contractor_invitation_id: contractorDel.id }
+    await ContractorRegisterInsurance.destroy({
+      where: { contractor_id: contractorReg.id }
     });
-    if (deleteContractorReg) {
-      await ContractorRegisterInsurance.destroy({
-        where: { contractor_id: deleteContractorReg.id }
-      });
-      await ContractorPublicLiability.destroy({
-        where: { contractor_id: deleteContractorReg.id }
-      });
-      await ContractorOrganizationSafetyManagement.destroy({
-        where: { contractor_id: deleteContractorReg.id }
-      });
-      await ContractorRegistration.destroy({
-        where: { id: deleteContractorReg.id }
-      });
-    }
-    await ContractorInvitation.destroy({
-      where: { id: contractor_id }
+    await ContractorPublicLiability.destroy({
+      where: { contractor_id: contractorReg.id }
     });
-
+    await ContractorOrganizationSafetyManagement.destroy({
+      where: { contractor_id: contractorReg.id }
+    });
+    await ContractorRegistration.destroy({
+      where: { id: contractorReg.id }
+    });
     return res.status(200).json({
-      message: "Contractor and related records deleted successfully."
+      message: "Contractor registration and related documents deleted successfully."
     });
   } catch (error) {
-    console.error("Error deleting contractor records:", error);
+    console.error("Error deleting contractor registration:", error);
     return res.status(500).json({
       message: "Internal server error",
       error: error.message
@@ -952,6 +942,66 @@ const DeleteContractorRecords = async (req, res) => {
   }
 };
 
+
+
+const GetContractorDetails = async (req, res) => {
+  try {
+    const { contractor_id } = req.query;
+
+    if (!contractor_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Contractor ID is required.",
+      });
+    }
+
+    const findDetails = await ContractorRegistration.findOne({
+      where: {
+        id: contractor_id
+      }
+    });
+
+    if (!findDetails) {
+      return res.status(404).json({
+        success: false,
+        message: "Contractor not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Contractor details fetched successfully.",
+      data: findDetails
+    });
+
+  } catch (error) {
+    console.error("Error fetching contractor details:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+      error: error.message
+    });
+  }
+};
+
+
+const MakePdfToAllContractorForm = async(req,res)=>{
+  try {
+    const {contractor_id} = req.body;
+    const findAllfields = await ContractorRegistration.findOne({
+      where:{
+        id:contractor_id
+      }
+    })
+
+    return res.status(200).json({
+      status:200,message:'All Data Retrieved Succesfully',
+      data:findAllfields
+    })
+  } catch (error) {
+    
+  }
+}
 
 
 
@@ -967,5 +1017,7 @@ module.exports = {
   DeletePublicLContrator,
   DeleteSafetyMContrator,
   CheckContractorRegisterStatus,
-  DeleteContractorRecords
+  DeleteContractorRecords,
+  GetContractorDetails,
+  MakePdfToAllContractorForm
 };
